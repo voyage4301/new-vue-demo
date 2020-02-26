@@ -483,6 +483,9 @@ export default new Vuex.Store({
   state: {
     // 全局数据对象
   },
+  getters: {
+    // 计算属性
+  },
   mutations: {
     // 同步管理数据
   },
@@ -493,6 +496,232 @@ export default new Vuex.Store({
     // 模块化
   }
 });
+```
+### 1.3.1 state
+#### 简单的获取和修改示例
+```js
+/* store/index.js */
+ state: {
+    count: 1111,
+  },
+  mutations: {
+    addNum() {
+      this.state.count++
+    }
+  }
+```
+```html
+<div>{{ count  }}</div>
+<button @click="setNum">增加</button>
+```
+```js
+computed: {
+  count() {
+    return this.$store.state.count;
+  }
+},
+methods: {
+  setNum() {
+    this.$store.commit("addNum");
+  }
+}
+
+```
+#### mapState 辅助函数
+```js
+/* store/index.js */
+  state: {
+    count: 1111,
+    count1: 2222,
+    count2: 333,
+  }
+```
+
+```html
+  <div>{{ count  }}</div>
+  <button @click="setNum">增加</button>
+  <div>{{ count1  }}</div>
+  <div>{{ count2  }}</div>
+```
+
+```js
+  data() {
+    return {
+      localCount: 99
+    };
+  },
+  /* 第一种 对象的方式 */
+  /* computed: {
+    ...mapState({
+      count: state => state.count,
+      count1: "count1",
+      count2(state) {
+        return state.count2 + this.localCount;
+      }
+    })
+  }, */
+  /* 数组的方式 */
+  computed: {
+    ...mapState(["count", "count1", "count2"])
+  },
+  methods: {
+    setNum() {
+      this.$store.commit("addNum");
+    }
+  }
+```
+
+
+
+### 1.3.2 getter 和 mapGetters辅助函数
+```js
+getters: {
+  // 通过属性访问  Getter 接受 state 作为其第一个参数
+  foodsFilter(state) {
+    console.log(this); // undefined
+    return state.foods.filter(v => v.price < 10)
+  },
+  /* Getter 也可以接受其他 getter 作为第二个参数 */
+  foodsFilter1(state, getters) {
+    return state.foods.filter(v => v.price < getters.otherFilter)
+  },
+  otherFilter() {
+    return 10
+  },
+  /* 你也可以通过让 getter 返回一个函数，来实现给 getter 传参。在你对 store 里的数组进行查询时非常有用。 */
+  foodsFilterWithPrice(state) {
+    return (price = 20) => {
+      return state.foods.filter(v => v.price < price)
+    }
+  }
+}
+```
+
+```js
+import { mapGetters } from "vuex";
+
+computed: {
+  ...mapGetters(["foodsFilter", 'foodsFilter1']), // 同名
+  ...mapGetters({ // 改名
+    currentFoods: 'foodsFilter'
+  }),
+}
+
+created() {
+  console.log(this.$store.getters.foodsFilter);
+  console.log(this.$store.getters.foodsFilter1);
+  console.log(this.$store.getters.foodsFilterWithPrice(20));
+  console.log('---------------------------');
+  console.log(this.foodsFilter);
+  console.log(this.foodsFilter1);
+  console.log(this.currentFoods);
+}
+```
+
+### 1.3.3 mutaition 和 mapMutations辅助函数
+- 更改 Vuex 的 store 中的状态的唯一方法是提交 mutation。
+- mutation 必须是同步函数
+
+- 注册: 
+```js
+mutations: {
+  /* 它会接受 state 作为第一个参数 !!!! */
+  addNum(state, options) {
+    console.log(options)
+    state.count++
+    // this.state.count++
+  }
+}
+```
+
+- 在组件内定义和使用: 
+
+```js
+methods: {
+  /* 第一种通过 this.$store.commit(...) 调用 */
+  setNum() {
+    this.$store.commit("addNum", {str: '123'}); // 打印 options 为:  {str: "123"}
+    this.$store.commit({type: "addNum", options: {str: '123'}}); // 打印 options 为: {type: "addNum", options: {…}}
+  }
+  /* 第二种通过 mapMutations 映射 */
+  ...mapMutations(["addNum"]), // 直接取 mutaions 里的 handler 方法名 映射到 methods里 支持传参!
+  ...mapMutations({ localaddNum: "addNum" }) // 改名映射 支持传参!
+}
+```
+
+```html
+<button @click="setNum">增加</button>
+<button @click="addNum({ str: '123' })">增加</button> 
+<button @click="localaddNum({ str: '123' })">增加</button> 
+```
+
+### 1.2.4 action
+- Action 类似于 mutation，不同在于：
+- - Action 提交的是 mutation，而不是直接变更状态。
+- - Action 可以包含任意异步操作。
+
+- 注册
+```js
+actions: {
+    /**
+     * Action 函数接受一个与 store 实例具有相同方法和属性的 context 对象 
+     * 因此你可以调用 context.commit 提交一个 mutation
+     * 或者通过 context.state 和 context.getters 来获取 state 和 getters
+     * context 对象不是 store 实例本身!!!!!
+     */
+    addNum(context) {
+      console.log('执行action2');
+      context.commit('addNum', { str: '123' })
+    },
+    addNumSync(context, options) {
+      console.log(options);
+      setTimeout(() => {
+        context.commit('addNum', { str: '123' })
+      }, 1000)
+    },
+    addNumPromise({ commit }, options) {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          console.log(options);
+          commit('addNum', { str: '123' })
+          resolve()
+        }, 1000);
+      })
+    },
+    async addNumAsync1(context) {
+      console.log('执行action1');
+      context.commit('addNum', { str: '123' })
+    },
+    async addNumAsync2({ commit, dispatch }, options) {
+      await dispatch('addNumAsync1')
+      console.log(options);
+      commit('addNum', {str: '123'})
+    }
+  }
+```
+
+- 使用
+
+```js
+import { mapState, mapGetters, mapMutations, mapActions } from "vuex";
+
+methods: {
+    setNum() {
+      /* muation */
+      this.$store.commit("addNum", { str: "123" }); // {str: "123"}
+      // this.$store.commit({type: "addNum", options: {str: '123'}}); // {type: "addNum", options: {…}}
+
+      /* action */
+      // this.$store.dispatch('addNumSync')
+      // this.$store.dispatch("addNumSync", { str: "123" });
+      // this.$store.dispatch({ type: "addNumSync", options: { str: 123 } });
+      // this.$store.dispatch({ type: "addNumPromise", options: { str: 123 } });
+      this.$store.dispatch({ type: "addNumAsync2", options: { str: 123 } });
+    },
+    ...mapActions(["addNumSync"]),
+    ...mapActions({ localaddNumSync: "addNumSync" }),
+    ...mapActions({ localaddNumSync: "addNumSync" })
+}
 ```
 
 ## 1.4 组件
